@@ -75,7 +75,8 @@ env.read_env(os.path.join(BASE_DIR, '.env'))
 # Define DEBUG here immediately after reading environment
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
 
-# Now you can safely use DEBUG in conditional
+SECURITY_EVENT_HMAC_KEY = os.getenv('SECURITY_EVENT_HMAC_KEY', 'default-insecure-key-for-dev-only')
+
 if DEBUG:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
@@ -124,7 +125,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'core.AnonymousUser'
 
-# REST Framework settings
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.core.authentication.ClientTokenAuthentication',
@@ -146,7 +147,7 @@ PASSWORD_HASHERS = [
 # Application-specific settings
 XUSDT_SETTINGS = {
     'EXCHANGE_CODE_PREFIX': 'EX-',
-    'EXCHANGE_CODE_LENGTH': 6,
+    'EXCHANGE_CODE_LENGTH': 8,
     'CLIENT_TOKEN_SALT': env('CLIENT_TOKEN_SALT'),
     'USER_TOKEN_HMAC_KEY': env('USER_TOKEN_HMAC_KEY'),
     'ESCROW_FEE_PERCENT': 0.25,  # 0.25%

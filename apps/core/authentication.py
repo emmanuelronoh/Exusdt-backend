@@ -1,6 +1,7 @@
+#core/authentication.py
 from rest_framework import authentication, exceptions
 from django.conf import settings
-from datetime import timezone
+from django.utils import timezone
 from .models import AnonymousUser
 
 
