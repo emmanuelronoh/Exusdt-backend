@@ -1,9 +1,7 @@
 import uuid
 from rest_framework import serializers
-from .models import AnonymousUser, SecurityEvent
+from .models import AnonymousUser, SecurityEvent, SecurityQuestion
 from django.contrib.auth.hashers import make_password
-
-
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -31,6 +29,26 @@ class UserSerializer(serializers.ModelSerializer):
 
         return user
 
+class SecurityQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SecurityQuestion
+        fields = ['id', 'question_enc', 'created_at']
+        read_only_fields = fields
+
+class SetupSecurityQuestionSerializer(serializers.Serializer):
+    question = serializers.CharField(max_length=255, write_only=True)
+    answer = serializers.CharField(max_length=255, write_only=True)
+
+    def validate(self, attrs):
+        if len(attrs['question']) < 10:
+            raise serializers.ValidationError("Question must be at least 10 characters")
+        if len(attrs['answer']) < 3:
+            raise serializers.ValidationError("Answer must be at least 3 characters")
+        return attrs
+
+class AnswerSecurityQuestionSerializer(serializers.Serializer):
+    question_id = serializers.UUIDField()
+    answer = serializers.CharField(max_length=255)
 
 class SecurityEventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,4 +76,18 @@ class LoginSerializer(serializers.Serializer):
         user.rotate_session_salt()
 
         attrs["user"] = user
+        return attrs
+    
+
+class PasswordResetSerializer(serializers.Serializer):
+    exchange_code = serializers.CharField(max_length=8)
+    new_password = serializers.CharField(write_only=True, required=False)
+    
+    def validate(self, attrs):
+        try:
+            user = AnonymousUser.objects.get(exchange_code=attrs['exchange_code'])
+        except AnonymousUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid exchange code")
+        
+        attrs['user'] = user
         return attrs

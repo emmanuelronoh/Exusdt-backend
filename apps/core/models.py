@@ -2,7 +2,7 @@ import uuid
 import hashlib
 import hmac
 import json
-
+from cryptography.fernet import Fernet
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import (
@@ -174,3 +174,36 @@ class SecurityEvent(models.Model):
             models.Index(fields=["actor_token"], name="idx_event_actor"),
             models.Index(fields=["created_at"], name="idx_event_timestamp"),
         ]
+
+
+class SecurityQuestion(models.Model):
+    user = models.ForeignKey(AnonymousUser, on_delete=models.CASCADE, related_name='security_questions')
+    question_enc = models.TextField(help_text="Encrypted security question")
+    answer_enc = models.TextField(help_text="Encrypted answer")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(null=True, blank=True)
+
+    @classmethod
+    def encrypt_data(cls, data: str) -> str:
+        fernet = Fernet(settings.SECURITY_QUESTION_ENCRYPTION_KEY)
+        return fernet.encrypt(data.encode()).decode()
+
+    @classmethod
+    def decrypt_data(cls, encrypted_data: str) -> str:
+        fernet = Fernet(settings.SECURITY_QUESTION_ENCRYPTION_KEY)
+        return fernet.decrypt(encrypted_data.encode()).decode()
+
+    def set_question_answer(self, question: str, answer: str):
+        self.question_enc = self.encrypt_data(question)
+        self.answer_enc = self.encrypt_data(answer.lower().strip())  # Normalize answer
+        self.save()
+
+    def verify_answer(self, answer: str) -> bool:
+        try:
+            stored_answer = self.decrypt_data(self.answer_enc)
+            return stored_answer == answer.lower().strip()
+        except:
+            return False
+
+    def __str__(self):
+        return f"Security Question for {self.user.exchange_code}"

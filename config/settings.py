@@ -2,7 +2,11 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import environ
+import base64
+from cryptography.fernet import Fernet
 
+# Generate or use existing key for security questions
+SECURITY_QUESTION_ENCRYPTION_KEY = Fernet.generate_key().decode()
 BASE_DIR = Path(__file__).resolve().parent.parent 
 
 # Initialize environment variables
@@ -71,7 +75,7 @@ DATABASES = {
 env = environ.Env()
 environ.Env.read_env()
 env.read_env(os.path.join(BASE_DIR, '.env'))
-
+SECURITY_QUESTION_ENCRYPTION_KEY = Fernet.generate_key().decode()
 # Define DEBUG here immediately after reading environment
 DEBUG = env.bool('DJANGO_DEBUG', default=False)
 
@@ -129,6 +133,7 @@ AUTH_USER_MODEL = 'core.AnonymousUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.core.authentication.ClientTokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
