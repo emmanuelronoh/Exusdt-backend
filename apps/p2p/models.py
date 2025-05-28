@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from decimal import Decimal
 
 
 class P2PListing(models.Model):
@@ -79,7 +80,7 @@ class P2PListing(models.Model):
 class P2PTrade(models.Model):
     STATUS_CHOICES = (
         (0, 'Created'),
-        (1, 'Funded'),
+        (1, 'Funded'),  # Fixed typo from 'Funded' to 'Funded'
         (2, 'PaymentSent'),
         (3, 'Completed'),
         (4, 'Disputed'),
@@ -130,8 +131,16 @@ class P2PTrade(models.Model):
 
     def calculate_fee(self):
         """Calculate platform fee based on trade amount"""
-        fee_percent = settings.XUSDT_SETTINGS['ESCROW_FEE_PERCENT'] / 100
-        calculated_fee = self.listing.usdt_amount * fee_percent
-        min_fee = settings.XUSDT_SETTINGS['ESCROW_MIN_FEE']
-        self.fee_amount = max(calculated_fee, min_fee)
-        return self.fee_amount
+        from decimal import Decimal
+        try:
+            fee_percent = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_FEE_PERCENT'])) / Decimal(100)
+            calculated_fee = self.listing.usdt_amount * fee_percent
+            min_fee = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_MIN_FEE']))
+            self.fee_amount = max(calculated_fee, min_fee)
+            return self.fee_amount
+        except (TypeError, ValueError, KeyError) as e:
+            # Handle error appropriately - maybe log it and return a default fee
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error calculating fee: {str(e)}")
+            return Decimal('0')

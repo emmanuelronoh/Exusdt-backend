@@ -5,8 +5,14 @@ class EscrowWalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = EscrowWallet
         fields = ['address', 'balance_commitment', 'created_at', 'last_used']
-        read_only_fields = fields
+        read_only_fields = ['created_at', 'last_used']  # Only these should be read-only
 
+class EscrowWalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EscrowWallet
+        fields = ['id', 'address', 'balance_commitment', 'created_at', 'last_used']
+        read_only_fields = ['created_at', 'last_used']
+        
 class SystemWalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemWallet

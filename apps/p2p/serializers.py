@@ -1,21 +1,41 @@
 from rest_framework import serializers
 from .models import P2PListing, P2PTrade
-from django.conf import settings
 
 class P2PListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = P2PListing
         fields = [
-            'id', 'usdt_amount', 'fiat_price', 'payment_method', 
-            'status', 'created_at', 'expires_at'
+            'id', 'seller_token', 'escrow_address', 'usdt_amount', 
+            'fiat_price', 'payment_method', 'status', 'created_at', 
+            'expires_at', 'instructions_enc'
         ]
-        read_only_fields = ['id', 'status', 'created_at', 'expires_at']
+        read_only_fields = [
+            'id', 'seller_token', 'status', 'created_at', 'expires_at'
+        ]
+        extra_kwargs = {
+            'escrow_address': {'required': True},
+            'usdt_amount': {'required': True},
+            'fiat_price': {'required': True},
+            'payment_method': {'required': True}
+        }
 
 class P2PTradeSerializer(serializers.ModelSerializer):
+    listing = serializers.PrimaryKeyRelatedField(
+        queryset=P2PListing.objects.filter(status=1), 
+        help_text="UUID of the listing being traded"
+    )
+    
     class Meta:
         model = P2PTrade
         fields = [
             'id', 'listing', 'escrow_tx_hash', 'payment_proof_hash',
-            'status', 'fee_amount', 'created_at', 'updated_at'
+            'status', 'fee_amount', 'created_at', 'updated_at',
+            'completed_at', 'buyer_token', 'seller_token'
         ]
-        read_only_fields = ['id', 'fee_amount', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'status', 'fee_amount', 'created_at', 'updated_at',
+            'completed_at', 'buyer_token', 'seller_token'
+        ]
+        extra_kwargs = {
+            'escrow_tx_hash': {'required': True},
+        }
