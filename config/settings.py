@@ -2,8 +2,13 @@ import os
 from pathlib import Path
 from datetime import timedelta
 import environ
+import json
 import base64
 from cryptography.fernet import Fernet
+from decouple import config
+USDT_ADDR = config('USDT_ADDR')
+
+WEB3_RPC_URL = config('WEB3_RPC_URL')
 
 # Generate or use existing key for security questions
 SECURITY_QUESTION_ENCRYPTION_KEY = Fernet.generate_key().decode()
@@ -13,7 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env()
 env.read_env(os.path.join(BASE_DIR, '.env'))
-
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('DJANGO_SECRET_KEY')
@@ -30,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'rest_framework',
+    'corsheaders',
     'apps.core',
     'apps.escrow',
     'apps.p2p',
@@ -37,6 +42,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # <-- must be at the top!
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -47,6 +53,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
 
 TEMPLATES = [
     {
@@ -131,6 +138,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'core.AnonymousUser'
 
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8080",
+    "https://preview--anon-cash-tether-trade.lovable.app",
+]
+
+# Optional - allow credentials (e.g., cookies, Authorization headers)
+CORS_ALLOW_CREDENTIALS = True
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.core.authentication.ClientTokenAuthentication',
@@ -142,6 +157,12 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
         'user': '1000/hour',
+        'registration': '10/hour',  # Add this line for registration endpoint
+        'login': '20/hour',         # For login endpoint
+        'security_questions': '5/hour',  # For security questions
+        'verify_questions': '10/hour',   # For question verification
+        'recovery': '5/hour',            # For account recovery
+        'password_reset': '5/hour',      
     },
 }
 

@@ -4,7 +4,10 @@ from .views import (
     EscrowWalletDetailView,
     SystemWalletListView,
     EscrowWalletListView,
-    EscrowReleaseView
+    EscrowReleaseView,
+    EscrowFundView,
+    EscrowDisputeView,
+    EscrowUpdateView
 )
 
 urlpatterns = [
@@ -12,5 +15,8 @@ urlpatterns = [
     path('wallets/<uuid:pk>/', EscrowWalletDetailView.as_view(), name='escrow-wallet-detail'),
     path('system-wallets/', SystemWalletListView.as_view(), name='system-wallet-list'),
     path('wallets/list/', EscrowWalletListView.as_view(), name='escrow-wallet-list'),
-    path("release/<uuid:escrow_id>/", EscrowReleaseView.as_view(), name="escrow-release"),
+    path('fund/<uuid:escrow_id>/', EscrowFundView.as_view(), name='escrow-fund'),
+    path('release/<uuid:escrow_id>/', EscrowReleaseView.as_view(), name='escrow-release'),
+    path('dispute/<uuid:escrow_id>/', EscrowDisputeView.as_view(), name='escrow-dispute'),
+    path('update/<uuid:escrow_id>/', EscrowUpdateView.as_view(), name='escrow-update'),
 ]

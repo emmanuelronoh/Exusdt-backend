@@ -5,7 +5,8 @@ from .serializers import EscrowWalletSerializer, SystemWalletSerializer
 from django.conf import settings
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-
+from .services import release_to, wait_for_deposit
+from decimal import Decimal
 import hmac
 import hashlib
 
@@ -17,7 +18,15 @@ class EscrowWalletCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         client_token = self.request.user.client_token
         user_token = EscrowWallet.generate_user_token(client_token)
-        serializer.save(user_token=user_token)
+        
+        # Create new escrow wallet
+        escrow_wallet = create_escrow_wallet()
+        
+        serializer.save(
+            user_token=user_token,
+            address=escrow_wallet.address,
+            status='created'
+        )
 
 class EscrowWalletDetailView(generics.RetrieveAPIView):
     serializer_class = EscrowWalletSerializer
@@ -41,15 +50,128 @@ class EscrowWalletListView(generics.ListAPIView):
         client_token = self.request.user.client_token
         user_token = EscrowWallet.generate_user_token(client_token)
         return EscrowWallet.objects.filter(user_token=user_token)
+
+class EscrowFundView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
     
-class EscrowReleaseView(APIView):
     def post(self, request, escrow_id):
         escrow = get_object_or_404(EscrowWallet, id=escrow_id)
-        if escrow.status != "holding":
-            return Response({"error": "Cannot release funds"}, status=400)
+        
+        # Verify user owns this escrow
+        client_token = request.user.client_token
+        user_token = EscrowWallet.generate_user_token(client_token)
+        if escrow.user_token != user_token:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Start monitoring for deposit
+        try:
+            min_amount = Decimal(request.data.get('min_amount', 0))
+            wait_for_deposit(escrow, min_amount)
+            return Response({"status": "waiting_for_deposit"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Logic to transfer funds
-        # escrow.amount → SellerWallet
-        escrow.status = "released"
-        escrow.save()
-        return Response({"message": "Funds released"}, status=200)
+class EscrowReleaseView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowWallet, id=escrow_id)
+        
+        # Verify user owns this escrow
+        client_token = request.user.client_token
+        user_token = EscrowWallet.generate_user_token(client_token)
+        if escrow.user_token != user_token:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        if escrow.status != "funded":
+            return Response(
+                {"error": "Escrow not in fundable state"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not escrow.buyer_address:
+            return Response(
+                {"error": "Buyer address not set"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            tx_hash = release_to(
+                buyer_addr=escrow.buyer_address,
+                wallet=escrow,
+                amount=escrow.amount,
+                fee=Decimal(settings.ESCROW_FEE_PERCENT) * escrow.amount
+            )
+            
+            return Response(
+                {"tx_hash": tx_hash, "status": "released"},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Release failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class EscrowDisputeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowWallet, id=escrow_id)
+        
+        # Verify user owns this escrow
+        client_token = request.user.client_token
+        user_token = EscrowWallet.generate_user_token(client_token)
+        if escrow.user_token != user_token:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        if escrow.status != "funded":
+            return Response(
+                {"error": "Only funded escrows can be disputed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        escrow.status = "disputed"
+        escrow.save(update_fields=["status"])
+        
+        # Here you would typically notify admins via email or other channel
+        # and potentially freeze the funds
+        
+        return Response(
+            {"status": "disputed", "message": "Dispute opened successfully"},
+            status=status.HTTP_200_OK
+        )
+
+class EscrowUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def patch(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowWallet, id=escrow_id)
+        
+        # Verify user owns this escrow
+        client_token = request.user.client_token
+        user_token = EscrowWallet.generate_user_token(client_token)
+        if escrow.user_token != user_token:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        if escrow.status != "created":
+            return Response(
+                {"error": "Can only update escrow in created state"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update buyer/seller addresses
+        buyer_address = request.data.get('buyer_address')
+        seller_address = request.data.get('seller_address')
+        
+        if buyer_address:
+            escrow.buyer_address = buyer_address
+        if seller_address:
+            escrow.seller_address = seller_address
+        
+        escrow.save(update_fields=["buyer_address", "seller_address"])
+        
+        return Response(
+            EscrowWalletSerializer(escrow).data,
+            status=status.HTTP_200_OK
+        )
