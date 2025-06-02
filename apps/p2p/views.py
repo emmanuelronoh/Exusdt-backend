@@ -1,43 +1,54 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .models import P2PListing, P2PTrade
-from .serializers import P2PListingSerializer, P2PTradeSerializer
+from .serializers import P2PListingSerializer, P2PTradeSerializer, P2PTradeCreateSerializer
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Q
 from rest_framework import serializers
 import hmac
 import hashlib
+from rest_framework.views import APIView
+from django.db.models import Avg, Count, Min, Max, Sum
+from rest_framework.permissions import IsAuthenticated
 
 class P2PListingListView(generics.ListCreateAPIView):
+    """List active listings and allow authenticated users to create a listing."""
+
     serializer_class = P2PListingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return P2PListing.objects.filter(
-            status=1,  # Active
-            expires_at__gt=timezone.now()
-        ).order_by('-created_at')
+        return (
+            P2PListing.objects.filter(status=1,  # Active
+                                       expires_at__gt=timezone.now())
+            .order_by("-created_at")
+        )
 
     def perform_create(self, serializer):
         # Validate required fields first
-        required_fields = ['escrow_address', 'usdt_amount', 'fiat_price', 'payment_method']
+        required_fields = [
+            "escrow_address",
+            "usdt_amount",
+            "fiat_price",
+            "payment_method",
+        ]
         for field in required_fields:
             if field not in serializer.validated_data:
                 raise serializers.ValidationError({field: "This field is required"})
 
         # Generate seller token
         client_token = self.request.user.client_token
-        hmac_key = settings.XUSDT_SETTINGS['USER_TOKEN_HMAC_KEY'].encode()
+        hmac_key = settings.XUSDT_SETTINGS["USER_TOKEN_HMAC_KEY"].encode()
         seller_token = hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
-        
+
         # Save with additional data
-        serializer.save(
-            seller_token=seller_token,
-            status=1  # Active
-        )
+        serializer.save(seller_token=seller_token, status=1)  # Active
+
 
 class P2PListingDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update or delete a single listing while it is not expired."""
+
     serializer_class = P2PListingSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -45,57 +56,125 @@ class P2PListingDetailView(generics.RetrieveUpdateDestroyAPIView):
         return P2PListing.objects.filter(expires_at__gt=timezone.now())
 
 class P2PTradeCreateView(generics.CreateAPIView):
+    """Create a new trade from an active listing."""
+
     queryset = P2PTrade.objects.all()
-    serializer_class = P2PTradeSerializer
+    serializer_class = P2PTradeCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Validate the listing first
-        listing = serializer.validated_data['listing']
-        
+        listing = serializer.validated_data["listing"]
+
         # Prevent users from trading with themselves
         client_token = self.request.user.client_token
-        hmac_key = settings.XUSDT_SETTINGS['USER_TOKEN_HMAC_KEY'].encode()
+        hmac_key = settings.XUSDT_SETTINGS["USER_TOKEN_HMAC_KEY"].encode()
         user_token = hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
-        
+
         if user_token == listing.seller_token:
-            raise serializers.ValidationError({
-                'listing': 'You cannot create a trade with your own listing'
-            })
+            raise serializers.ValidationError(
+                {"listing": "You cannot create a trade with your own listing"}
+            )
 
-        # Check if listing is active
+        # Check if listing is still active
         if listing.status != 1 or listing.expires_at < timezone.now():
-            raise serializers.ValidationError({
-                'listing': 'This listing is not available for trading'
-            })
+            raise serializers.ValidationError({"listing": "This listing is not available for trading"})
 
-        # Generate buyer token
-        buyer_token = user_token
-        
         # Create and save the trade
-        trade = serializer.save(
-            buyer_token=buyer_token,
-            seller_token=listing.seller_token
-        )
-        
+        trade = serializer.save(buyer_token=user_token, seller_token=listing.seller_token)
+
         # Calculate and save fee
         trade.calculate_fee()
         trade.save()
 
-        # Update listing status if needed
-        if listing.status == 1:  # Active
-            listing.status = 3   # Reserved
+        # Mark listing as reserved
+        if listing.status == 1:
+            listing.status = 3  # Reserved
             listing.save()
 
+
+
 class P2PTradeDetailView(generics.RetrieveUpdateAPIView):
+    """Retrieve or update a trade visible to either the buyer or the seller."""
+
     serializer_class = P2PTradeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         client_token = self.request.user.client_token
-        hmac_key = settings.XUSDT_SETTINGS['USER_TOKEN_HMAC_KEY'].encode()
+        hmac_key = settings.XUSDT_SETTINGS["USER_TOKEN_HMAC_KEY"].encode()
         user_token = hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
-        return P2PTrade.objects.filter(
-            Q(buyer_token=user_token) | 
-            Q(seller_token=user_token)
+        return P2PTrade.objects.filter(Q(buyer_token=user_token) | Q(seller_token=user_token))
+
+
+class MyTradesListView(generics.ListAPIView):
+    """List all trades where the authenticated user is either buyer or seller."""
+
+    serializer_class = P2PTradeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        client_token = self.request.user.client_token
+        hmac_key = settings.XUSDT_SETTINGS["USER_TOKEN_HMAC_KEY"].encode()
+        user_token = hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
+        return (
+            P2PTrade.objects.filter(Q(buyer_token=user_token) | Q(seller_token=user_token))
+            .order_by("-created_at")
         )
+    
+class MarketStatsView(APIView):
+    """Provides market statistics for P2P trading"""
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, format=None):
+        # Get active listings
+        active_listings = P2PListing.objects.filter(
+            status=1,  # Active
+            expires_at__gt=timezone.now()
+        )
+        
+        # Calculate statistics
+        stats = {
+            'total_active_listings': active_listings.count(),
+            'average_price': active_listings.aggregate(avg_price=Avg('fiat_price'))['avg_price'],
+            'min_price': active_listings.aggregate(min_price=Min('fiat_price'))['min_price'],
+            'max_price': active_listings.aggregate(max_price=Max('fiat_price'))['max_price'],
+            'payment_methods_distribution': active_listings.values('payment_method').annotate(
+                count=Count('payment_method')
+            ).order_by('-count'),
+            'volume_24h': P2PTrade.objects.filter(
+                created_at__gte=timezone.now() - timezone.timedelta(days=1)
+            ).aggregate(total_volume=Sum('usdt_amount'))['total_volume'] or 0,
+        }
+        
+        return Response(stats)
+
+
+class SpecificUserView(APIView):
+    """
+    Get listings for a specific user or current user if no ID provided
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user_id = request.query_params.get('user_id')
+        
+        # If no user_id provided, get current user's token
+        if not user_id:
+            client_token = request.user.client_token
+            hmac_key = settings.XUSDT_SETTINGS["USER_TOKEN_HMAC_KEY"].encode()
+            user_id = hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
+
+        listings = P2PListing.objects.filter(
+            seller_token=user_id,
+            expires_at__gt=timezone.now()
+        ).order_by('-created_at')
+
+        serializer = P2PListingSerializer(listings, many=True)
+        return Response({
+            "listings": serializer.data,
+            "user_info": {
+                "id": user_id,
+                # Add other user info if available
+            }
+        })

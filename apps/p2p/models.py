@@ -96,6 +96,11 @@ class P2PTrade(models.Model):
     buyer_token = models.CharField(max_length=64)
     seller_token = models.CharField(max_length=64)
     escrow_tx_hash = models.CharField(max_length=66)
+    usdt_amount = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=0.00  
+    )
     payment_proof_hash = models.CharField(
         max_length=64,
         null=True,
