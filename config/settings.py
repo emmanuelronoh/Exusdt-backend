@@ -163,8 +163,10 @@ AUTH_USER_MODEL = 'core.AnonymousUser'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "https://preview--anon-cash-tether-trade.lovable.app",
-    'https://exusdt-backend.onrender.com', 
+    "https://anon-cash-tether-trade.vercel.app",  # <-- Add this
+    'https://exusdt-backend.onrender.com',
 ]
+
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -172,6 +174,7 @@ ALLOWED_HOSTS = [
     'exusdt-backend.onrender.com',
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Optional - allow credentials (e.g., cookies, Authorization headers)
 CORS_ALLOW_CREDENTIALS = True
