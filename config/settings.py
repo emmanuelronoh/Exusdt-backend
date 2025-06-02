@@ -24,7 +24,7 @@ env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('DJANGO_SECRET_KEY')
 
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'preview--anon-cash-tether-trade.lovable.app'])
+ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'preview--anon-cash-tether-trade.lovable.app', 'exusdt-backend.onrender.com'])
 
 # Application definition
 INSTALLED_APPS = [
