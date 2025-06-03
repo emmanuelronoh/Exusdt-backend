@@ -1,11 +1,13 @@
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from .views import (
     UserCreateView, UserDetailView, 
     SecurityEventListView, LoginView,
     SecurityQuestionListView, SetupSecurityQuestionView,
     VerifySecurityQuestionView,
     InitiatePasswordResetView, CompletePasswordResetView,
-    RecoveryQuestionsView, VerifySecurityQuestionView
+    RecoveryQuestionsView, VerifySecurityQuestionView, UpdateProfileView, ChangePasswordView, ProfileView, AvatarUploadView
 )
 
 urlpatterns = [
@@ -15,7 +17,10 @@ urlpatterns = [
     
     # User Profile
     path('me/', UserDetailView.as_view(), name='user-detail'),
-    
+    path('update-profile/', UpdateProfileView.as_view(), name='user-profile'),
+    path('profile/', ProfileView.as_view(), name='user-profile'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+    path('profile/avatar/', AvatarUploadView.as_view(), name='upload-avatar'),
     # Security Features
     path('security-events/', SecurityEventListView.as_view(), name='security-events'),
     
@@ -29,4 +34,5 @@ urlpatterns = [
     path('recovery/questions/<str:exchange_code>/', RecoveryQuestionsView.as_view(), name='recovery-questions'),
     path('recovery/verify/', VerifySecurityQuestionView.as_view(), name='verify-recovery-questions'),
     path('recovery/complete/', CompletePasswordResetView.as_view(), name='complete-password-reset'),
-]
+    
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

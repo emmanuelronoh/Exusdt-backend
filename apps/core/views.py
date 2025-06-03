@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework.response import Response
 import random
+from rest_framework.views import APIView
 from rest_framework import generics, permissions, status
 from rest_framework.throttling import ScopedRateThrottle
 from .models import SecurityQuestion, AnonymousUser, SecurityEvent
@@ -13,7 +14,10 @@ from .serializers import (
     UserSerializer, 
     SecurityEventSerializer, 
     LoginSerializer,
-    PasswordResetSerializer
+    UpdateProfileSerializer,
+    PasswordResetSerializer,
+    PasswordChangeSerializer,
+    ProfileSerializer
 )
 
 
@@ -296,3 +300,152 @@ class CompletePasswordResetView(generics.GenericAPIView):
             {"detail": "Password successfully reset"},
             status=status.HTTP_200_OK
         )
+    
+class UpdateProfileView(generics.UpdateAPIView):
+    """
+    PATCH /api/auth/update-profile/
+    Updates user profile information
+    """
+    serializer_class = UpdateProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        
+        SecurityEvent.log_event(
+            event_type=4,
+            actor_token=user.client_token,
+            ip_address=self.request.META.get("REMOTE_ADDR", ""),
+            details={"action": "profile_updated"},
+        )
+
+class ProfileView(generics.RetrieveUpdateAPIView):
+    """
+    GET, PATCH /api/auth/profile/
+    Retrieve or update user profile
+    """
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'profile'
+
+    def get_object(self):
+        return self.request.user
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        
+        SecurityEvent.log_event(
+            event_type=4,
+            actor_token=user.client_token,
+            ip_address=self.request.META.get("REMOTE_ADDR", ""),
+            details={"action": "profile_updated"},
+        )
+
+class ChangePasswordView(generics.GenericAPIView):
+    """
+    POST /api/auth/change-password/
+    Change user password
+    """
+    serializer_class = PasswordChangeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_change'
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = request.user
+        current_password = serializer.validated_data['current_password']
+        new_password = serializer.validated_data['new_password']
+        
+        if not user.check_password(current_password):
+            return Response(
+                {"current_password": "Current password is incorrect"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.set_password(new_password)
+        user.save()
+        
+        SecurityEvent.log_event(
+            event_type=3,
+            actor_token=user.client_token,
+            ip_address=request.META.get("REMOTE_ADDR", ""),
+            details={"action": "password_changed"},
+        )
+        
+        return Response(
+            {"detail": "Password has been changed successfully"},
+            status=status.HTTP_200_OK
+        )
+    
+class AvatarUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        avatar = request.FILES.get('avatar')
+
+        if not avatar:
+            return Response(
+                {"error": "No avatar file provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file size (example: limit to 2MB)
+        max_size = 2 * 1024 * 1024  # 2MB
+        if avatar.size > max_size:
+            return Response(
+                {"error": "File size too large. Maximum 2MB allowed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate file type (example: only images)
+        valid_types = ['image/jpeg', 'image/png', 'image/gif']
+        if avatar.content_type not in valid_types:
+            return Response(
+                {"error": "Invalid file type. Only JPEG, PNG, and GIF are allowed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # In a real implementation, you would:
+            # 1. Save the file to your storage (S3, local filesystem, etc.)
+            # 2. Generate a URL for the file
+            # 3. Store that URL in the avatar_url field
+            
+            # For this example, we'll just store the file name
+            # In production, use something like:
+            # from django.core.files.storage import default_storage
+            # file_path = default_storage.save(f'avatars/{user.id}/{avatar.name}', avatar)
+            # avatar_url = default_storage.url(file_path)
+            
+            # For now, we'll just store a placeholder
+            avatar_url = f"/media/avatars/user_{user.id}/{avatar.name}"
+            user.avatar_url = avatar_url
+            user.save()
+            
+            SecurityEvent.log_event(
+                event_type=4,
+                actor_token=user.client_token,
+                ip_address=request.META.get("REMOTE_ADDR", ""),
+                details={"action": "avatar_updated"},
+            )
+            
+            return Response(
+                {
+                    "message": "Avatar uploaded successfully.",
+                    "avatar_url": user.avatar_url
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -52,6 +52,15 @@ class AnonymousUser(AbstractBaseUser, PermissionsMixin):
         help_text="SHA3-256(salt + password_hash)",
     )
 
+    username = models.CharField(max_length=50, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    location = models.CharField(max_length=100, blank=True, null=True)
+    bio = models.TextField(blank=True, null=True)
+    avatar_url = models.URLField(blank=True, null=True)
+    total_trades = models.PositiveIntegerField(default=0)
+    success_rate = models.FloatField(default=0.0)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 

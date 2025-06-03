@@ -91,3 +91,54 @@ class PasswordResetSerializer(serializers.Serializer):
         
         attrs['user'] = user
         return attrs
+    
+    
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnonymousUser
+        fields = ['trust_score', 'last_active']  # Add any other fields you want to be updatable
+        read_only_fields = ['exchange_code', 'client_token', 'created_at']  # These shouldn't be changed
+    
+    def validate_trust_score(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError("Trust score must be between 0 and 100")
+        return value
+    
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnonymousUser
+        fields = [
+            'username', 'email', 'phone', 'location', 'bio', 
+            'avatar_url', 'trust_score', 'total_trades', 'success_rate',
+            'exchange_code', 'created_at'
+        ]
+        read_only_fields = [
+            'exchange_code', 'trust_score', 'total_trades', 
+            'success_rate', 'created_at'
+        ]
+
+    def validate_username(self, value):
+        if value and len(value) < 3:
+            raise serializers.ValidationError("Username must be at least 3 characters long")
+        return value
+
+    def validate_email(self, value):
+        if value and not value.strip():
+            return None
+        return value
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_password = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match"})
+        
+        if len(attrs['new_password']) < 6:
+            raise serializers.ValidationError({"new_password": "Password must be at least 6 characters long"})
+        
+        return attrs
