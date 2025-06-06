@@ -6,18 +6,34 @@ class P2PListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = P2PListing
         fields = [
-            'id', 'seller_token', 'escrow_address', 'usdt_amount', 
-            'fiat_price', 'payment_method', 'status', 'created_at', 
-            'expires_at', 'instructions_enc'
+            'id',
+            'seller_token',
+            'crypto_type',
+            'crypto_currency',
+            'crypto_amount',
+            'fiat_currency',
+            'fiat_amount',
+            'payment_method',
+            'description',
+            'instructions_enc',
+            'status',
+            'created_at',
+            'expires_at'
         ]
         read_only_fields = [
-            'id', 'seller_token', 'status', 'created_at', 'expires_at'
+            'id',
+            'seller_token',
+            'status',
+            'created_at',
+            'expires_at'
         ]
         extra_kwargs = {
-            'escrow_address': {'required': True},
-            'usdt_amount': {'required': True},
-            'fiat_price': {'required': True},
-            'payment_method': {'required': True}
+            'crypto_type': {'required': True},
+            'crypto_currency': {'required': True},
+            'crypto_amount': {'required': True},
+            'fiat_currency': {'required': True},
+            'fiat_amount': {'required': True},
+            'payment_method': {'required': True},
         }
 
 
@@ -29,14 +45,12 @@ class P2PTradeCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = P2PTrade
-        fields = [
-            'id', 'listing', 'escrow_tx_hash', 'payment_proof_hash',
-        ]
+        fields = ['id', 'listing', 'escrow_tx_hash', 'payment_proof_hash']
         extra_kwargs = {
             'escrow_tx_hash': {'required': True},
         }
 
- 
+
 class P2PTradeSerializer(serializers.ModelSerializer):
     listing = P2PListingSerializer(read_only=True)
     role = serializers.SerializerMethodField()
@@ -44,11 +58,20 @@ class P2PTradeSerializer(serializers.ModelSerializer):
     class Meta:
         model = P2PTrade
         fields = [
-            'id', 'listing', 'escrow_tx_hash', 'payment_proof_hash',
-            'status', 'fee_amount', 'created_at', 'updated_at',
-            'completed_at', 'buyer_token', 'seller_token', 'role'
+            'id',
+            'listing',
+            'escrow_tx_hash',
+            'payment_proof_hash',
+            'status',
+            'fee_amount',
+            'created_at',
+            'updated_at',
+            'completed_at',
+            'buyer_token',
+            'seller_token',
+            'role'
         ]
-        read_only_fields = fields  # All fields are read-only in GET view
+        read_only_fields = fields
 
     def get_role(self, obj):
         request = self.context.get('request')

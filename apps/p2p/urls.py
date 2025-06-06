@@ -7,7 +7,7 @@ from .views import (
     MyTradesListView,
     MarketStatsView,
     SpecificUserView,
-
+    MarkTradeAsPaidView, 
 )
 
 urlpatterns = [
@@ -15,6 +15,7 @@ urlpatterns = [
     path('listings/<uuid:pk>/', P2PListingDetailView.as_view(), name='p2p-listing-detail'),
     path('trades/', P2PTradeCreateView.as_view(), name='p2p-trade-create'),
     path('trades/<uuid:pk>/', P2PTradeDetailView.as_view(), name='p2p-trade-detail'),
+    path('trades/<uuid:pk>/mark-paid/', MarkTradeAsPaidView.as_view(), name='p2p-trade-mark-paid'),
     path('my-trades/', MyTradesListView.as_view(), name='p2p-my-trades'),
     path('market-stats/', MarketStatsView.as_view(), name='p2p-market-stats'),
     path('specific-user/', SpecificUserView.as_view(), name='p2p-specific-user'),

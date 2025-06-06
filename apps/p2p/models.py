@@ -12,7 +12,7 @@ class P2PListing(models.Model):
         (2, 'Hawala'),
         (3, 'Other'),
     )
-    
+
     STATUS_CHOICES = (
         (1, 'Active'),
         (2, 'Funded'),
@@ -20,40 +20,35 @@ class P2PListing(models.Model):
         (4, 'Completed'),
         (5, 'Expired'),
     )
-    
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    seller_token = models.CharField(
-        max_length=64,
-        help_text="HMAC-SHA256(seller_identity)"
+
+    CRYPTO_TYPES = (
+        ('buy', 'Buy'),
+        ('sell', 'Sell'),
     )
-    escrow_address = models.CharField(
-        max_length=42,
-        help_text="Funds locked here"
-    )
-    usdt_amount = models.DecimalField(
-        max_digits=20,
-        decimal_places=6,
-        validators=[MinValueValidator(0)]
-    )
-    fiat_price = models.DecimalField(
-        max_digits=20,
-        decimal_places=2,
-        validators=[MinValueValidator(0)]
-    )
-    payment_method = models.SmallIntegerField(
-        choices=PAYMENT_METHODS,
-        help_text="1=Cash,2=Hawala,3=Other"
-    )
-    instructions_enc = models.TextField(
+
+    escrow_wallet = models.ForeignKey(
+        'escrow.EscrowWallet',
+        on_delete=models.SET_NULL,
         null=True,
-        blank=True,
-        help_text="Encrypted with session key"
+        blank=True
     )
-    status = models.SmallIntegerField(
-        choices=STATUS_CHOICES,
-        default=1,
-        help_text="1=Active,2=Funded,3=Reserved,4=Completed,5=Expired"
-    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    seller_token = models.CharField(max_length=64, help_text="HMAC-SHA256(seller_identity)")
+
+    crypto_type = models.CharField(max_length=10, choices=CRYPTO_TYPES)
+    crypto_currency = models.CharField(max_length=10, default='USDT')
+    crypto_amount = models.DecimalField(max_digits=20, decimal_places=6, validators=[MinValueValidator(0)])
+
+    fiat_currency = models.CharField(max_length=10, default='USD')
+    fiat_amount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)])
+
+    payment_method = models.SmallIntegerField(choices=PAYMENT_METHODS, help_text="1=Cash,2=Hawala,3=Other")
+    description = models.TextField(blank=True, null=True)
+
+    instructions_enc = models.TextField(null=True, blank=True, help_text="Encrypted with session key")
+
+    status = models.SmallIntegerField(choices=STATUS_CHOICES, default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
 
@@ -76,7 +71,6 @@ class P2PListing(models.Model):
             )
         super().save(*args, **kwargs)
 
-
 class P2PTrade(models.Model):
     STATUS_CHOICES = (
         (0, 'Created'),
@@ -96,7 +90,7 @@ class P2PTrade(models.Model):
     buyer_token = models.CharField(max_length=64)
     seller_token = models.CharField(max_length=64)
     escrow_tx_hash = models.CharField(max_length=66)
-    usdt_amount = models.DecimalField(
+    fiat_amount = models.DecimalField(
         max_digits=20,
         decimal_places=2,
         default=0.00  
@@ -139,7 +133,7 @@ class P2PTrade(models.Model):
         from decimal import Decimal
         try:
             fee_percent = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_FEE_PERCENT'])) / Decimal(100)
-            calculated_fee = self.listing.usdt_amount * fee_percent
+            calculated_fee = self.listing.fiat_amount * fee_percent
             min_fee = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_MIN_FEE']))
             self.fee_amount = max(calculated_fee, min_fee)
             return self.fee_amount
