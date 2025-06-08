@@ -6,7 +6,6 @@ import binascii
 import nacl.encoding
 import nacl.signing
 
-
 class TradeDispute(models.Model):
     RESOLUTION_CHOICES = (
         (0, 'Pending'),

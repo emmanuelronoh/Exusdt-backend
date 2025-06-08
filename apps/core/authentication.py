@@ -19,3 +19,4 @@ class ClientTokenAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed('Invalid client token')
 
         return (user, None)
+    
