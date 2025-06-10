@@ -7,16 +7,16 @@ from .views import (
     EscrowReleaseView,
     EscrowFundView,
     EscrowDisputeView,
-    EscrowUpdateView
+    EscrowUpdateView,
 )
 
 urlpatterns = [
-    path('wallets/', EscrowWalletCreateView.as_view(), name='escrow-wallet-create'),
-    path('wallets/<uuid:pk>/', EscrowWalletDetailView.as_view(), name='escrow-wallet-detail'),
-    path('system-wallets/', SystemWalletListView.as_view(), name='system-wallet-list'),
-    path('wallets/list/', EscrowWalletListView.as_view(), name='escrow-wallet-list'),
-    path('fund/<uuid:escrow_id>/', EscrowFundView.as_view(), name='escrow-fund'),
-    path('release/<uuid:escrow_id>/', EscrowReleaseView.as_view(), name='escrow-release'),
-    path('dispute/<uuid:escrow_id>/', EscrowDisputeView.as_view(), name='escrow-dispute'),
-    path('update/<uuid:escrow_id>/', EscrowUpdateView.as_view(), name='escrow-update'),
+    path('api/escrow/wallets/', EscrowWalletCreateView.as_view(), name='escrow-wallet-create'),
+    path('api/escrow/wallets/<uuid:pk>/', EscrowWalletDetailView.as_view(), name='escrow-wallet-detail'),
+    path('api/escrow/system-wallets/', SystemWalletListView.as_view(), name='system-wallet-list'),
+    path('api/escrow/wallets/list/', EscrowWalletListView.as_view(), name='escrow-wallet-list'),
+    path('api/escrow/fund/<uuid:escrow_id>/', EscrowFundView.as_view(), name='escrow-fund'),
+    path('api/escrow/release/<uuid:escrow_id>/', EscrowReleaseView.as_view(), name='escrow-release'),
+    path('api/escrow/dispute/<uuid:escrow_id>/', EscrowDisputeView.as_view(), name='escrow-dispute'),
+    path('api/escrow/update/<uuid:escrow_id>/', EscrowUpdateView.as_view(), name='escrow-update'),
 ]
