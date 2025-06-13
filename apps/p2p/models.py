@@ -41,7 +41,7 @@ class P2PListing(models.Model):
     crypto_amount = models.DecimalField(max_digits=20, decimal_places=6, validators=[MinValueValidator(0)])
 
     fiat_currency = models.CharField(max_length=10, default='USD')
-    fiat_amount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)])
+    usdt_amount = models.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(0)])
 
     payment_method = models.SmallIntegerField(choices=PAYMENT_METHODS, help_text="1=Cash,2=Hawala,3=Other")
     description = models.TextField(blank=True, null=True)
@@ -90,7 +90,7 @@ class P2PTrade(models.Model):
     buyer_token = models.CharField(max_length=64)
     seller_token = models.CharField(max_length=64)
     escrow_tx_hash = models.CharField(max_length=66)
-    fiat_amount = models.DecimalField(
+    usdt_amount = models.DecimalField(
         max_digits=20,
         decimal_places=2,
         default=0.00  
@@ -133,7 +133,7 @@ class P2PTrade(models.Model):
         from decimal import Decimal
         try:
             fee_percent = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_FEE_PERCENT'])) / Decimal(100)
-            calculated_fee = self.listing.fiat_amount * fee_percent
+            calculated_fee = self.listing.usdt_amount * fee_percent
             min_fee = Decimal(str(settings.XUSDT_SETTINGS['ESCROW_MIN_FEE']))
             self.fee_amount = max(calculated_fee, min_fee)
             return self.fee_amount

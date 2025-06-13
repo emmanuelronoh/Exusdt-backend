@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from .services import release_to, wait_for_deposit
 from decimal import Decimal
+from .services import create_escrow_wallet
 import hmac
 import hashlib
 

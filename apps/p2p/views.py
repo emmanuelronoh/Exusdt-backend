@@ -25,12 +25,12 @@ class P2PListingListView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        # Validate required fields
+        # Validate required fields - UPDATED to use usdt_amount
         required_fields = [
             "crypto_type",
             "crypto_amount",
             "crypto_currency",
-            "fiat_amount",
+            "usdt_amount",  # Changed from fiat_amount
             "fiat_currency",
             "payment_method",
         ]
@@ -134,18 +134,18 @@ class MarketStatsView(APIView):
             expires_at__gt=timezone.now()
         )
         
-        # Calculate statistics
+        # Calculate statistics - using usdt_amount instead of fiat_amount
         stats = {
             'total_active_listings': active_listings.count(),
-            'average_price': active_listings.aggregate(avg_price=Avg('fiat_amount'))['avg_price'],
-            'min_price': active_listings.aggregate(min_price=Min('fiat_amount'))['min_price'],
-            'max_price': active_listings.aggregate(max_price=Max('fiat_amount'))['max_price'],
+            'average_price': active_listings.aggregate(avg_price=Avg('usdt_amount'))['avg_price'],
+            'min_price': active_listings.aggregate(min_price=Min('usdt_amount'))['min_price'],
+            'max_price': active_listings.aggregate(max_price=Max('usdt_amount'))['max_price'],
             'payment_methods_distribution': active_listings.values('payment_method').annotate(
                 count=Count('payment_method')
             ).order_by('-count'),
             'volume_24h': P2PTrade.objects.filter(
                 created_at__gte=timezone.now() - timezone.timedelta(days=1)
-            ).aggregate(total_volume=Sum('fiat_amount'))['total_volume'] or 0,
+            ).aggregate(total_volume=Sum('usdt_amount'))['total_volume'] or 0,
         }
         
         return Response(stats)
