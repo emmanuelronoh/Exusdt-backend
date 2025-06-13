@@ -71,6 +71,16 @@ class EscrowFundView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class EscrowStatusView(APIView):
+    def get(self, request, escrow_id):
+        escrow = get_object_or_404(EscrowWallet, id=escrow_id)
+        # Return only status or full serialized data based on your needs
+        return Response({
+            "id": str(escrow.id),
+            "status": escrow.status  # assuming you have a `status` field
+        }, status=status.HTTP_200_OK)
+    
+    
 class EscrowReleaseView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
