@@ -60,7 +60,6 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     'x-client-token',
 ]
 
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

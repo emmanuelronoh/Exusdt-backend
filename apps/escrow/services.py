@@ -57,10 +57,9 @@ def create_escrow_wallet() -> EscrowWallet:
     """Create a new escrow wallet with a unique Ethereum address."""
     try:
         acct = w3.eth.account.create()
-        return EscrowWallet.objects.create(address=acct.address)
+        return EscrowWallet(address=acct.address)  # Return unsaved instance
     except Exception as e:
         raise WalletError(f"Failed to create escrow wallet: {str(e)}")
-
 
 def wait_for_deposit(wallet: EscrowWallet, min_amount: Decimal) -> None:
     """

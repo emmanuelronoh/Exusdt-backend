@@ -7,6 +7,18 @@ from django.utils import timezone
 
 
 class EscrowWallet(models.Model):
+    STATUS_CREATED = 'created'
+    STATUS_FUNDED = 'funded'
+    STATUS_RELEASED = 'released'
+    STATUS_DISPUTED = 'disputed'
+    
+    STATUS_CHOICES = [
+        (STATUS_CREATED, 'Created'),
+        (STATUS_FUNDED, 'Funded'),
+        (STATUS_RELEASED, 'Released'),
+        (STATUS_DISPUTED, 'Disputed'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     address = models.CharField(
         max_length=42,
@@ -21,6 +33,31 @@ class EscrowWallet(models.Model):
         max_length=64,
         help_text="SHA3-256(balance+salt)"
     )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_CREATED,
+        help_text="Current status of the escrow"
+    )
+    buyer_address = models.CharField(
+        max_length=42,
+        blank=True,
+        null=True,
+        help_text="ETH address of the buyer"
+    )
+    seller_address = models.CharField(
+        max_length=42,
+        blank=True,
+        null=True,
+        help_text="ETH address of the seller"
+    )
+    amount = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        help_text="Amount in USDT"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     last_used = models.DateTimeField(auto_now=True)
 
@@ -28,16 +65,33 @@ class EscrowWallet(models.Model):
         indexes = [
             models.Index(fields=['address'], name='idx_escrow_address'),
             models.Index(fields=['user_token'], name='idx_escrow_user'),
+            models.Index(fields=['status'], name='idx_escrow_status'),
         ]
 
     def __str__(self):
-        return f"Escrow {self.address}"
+        return f"Escrow {self.address} (Status: {self.get_status_display()})"
 
     @classmethod
     def generate_user_token(cls, client_token):
         """Generate HMAC-SHA256 user token from client token"""
         hmac_key = settings.XUSDT_SETTINGS['USER_TOKEN_HMAC_KEY'].encode()
         return hmac.new(hmac_key, client_token.encode(), hashlib.sha256).hexdigest()
+
+    def mark_as_funded(self, amount):
+        """Mark escrow as funded with the given amount"""
+        self.status = self.STATUS_FUNDED
+        self.amount = amount
+        self.save(update_fields=['status', 'amount', 'last_used'])
+
+    def mark_as_released(self):
+        """Mark escrow as released"""
+        self.status = self.STATUS_RELEASED
+        self.save(update_fields=['status', 'last_used'])
+
+    def mark_as_disputed(self):
+        """Mark escrow as disputed"""
+        self.status = self.STATUS_DISPUTED
+        self.save(update_fields=['status', 'last_used'])
 
 
 class SystemWallet(models.Model):

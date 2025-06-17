@@ -20,14 +20,14 @@ class EscrowWalletCreateView(generics.CreateAPIView):
         client_token = self.request.user.client_token
         user_token = EscrowWallet.generate_user_token(client_token)
         
-        # Create new escrow wallet
+        # Create and save the escrow wallet with all fields at once
         escrow_wallet = create_escrow_wallet()
+        escrow_wallet.user_token = user_token
+        escrow_wallet.status = 'created'
+        escrow_wallet.save()
         
-        serializer.save(
-            user_token=user_token,
-            address=escrow_wallet.address,
-            status='created'
-        )
+        # Return the created instance through the serializer
+        serializer.instance = escrow_wallet
 
 class EscrowWalletDetailView(generics.RetrieveAPIView):
     serializer_class = EscrowWalletSerializer
