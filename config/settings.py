@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'apps.p2p',
     'apps.disputes',
     'apps.wallet',
+    'apps.swap',
+    'apps.bridge',
 ]
 
 MIDDLEWARE = [

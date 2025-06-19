@@ -20,5 +20,7 @@ urlpatterns = [
     path('release/<uuid:escrow_id>/', EscrowReleaseView.as_view(), name='escrow-release'),
     path('dispute/<uuid:escrow_id>/', EscrowDisputeView.as_view(), name='escrow-dispute'),
     path('update/<uuid:escrow_id>/', EscrowUpdateView.as_view(), name='escrow-update'),
-    path('status/<uuid:escrow_id>/', EscrowStatusView.as_view(), name='escrow-status'),
+    path('status/<uuid:listing_id>/', EscrowStatusView.as_view(), name='escrow-status'),
+    path('wallets/by-listing/<uuid:listing_id>/', EscrowStatusView.as_view(), name='escrow-wallets-by-listing')
+
 ]

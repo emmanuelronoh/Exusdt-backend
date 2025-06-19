@@ -8,4 +8,6 @@ urlpatterns = [
     path('api/p2p/', include('apps.p2p.urls')),
     path('api/disputes/', include('apps.disputes.urls')),
     path('api/wallet/', include('apps.wallet.urls')),
+    path('api/swap/', include('apps.swap.urls')),
+    path('api/bridge/', include('apps.bridge.urls')),
 ]

@@ -5,7 +5,6 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
-
 class EscrowWallet(models.Model):
     STATUS_CREATED = 'created'
     STATUS_FUNDED = 'funded'

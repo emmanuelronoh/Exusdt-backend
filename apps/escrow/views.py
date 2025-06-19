@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from .models import EscrowWallet, SystemWallet
 from .serializers import EscrowWalletSerializer, SystemWalletSerializer
 from django.conf import settings
+from apps.p2p.models import P2PListing
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from .services import release_to, wait_for_deposit
@@ -73,12 +74,21 @@ class EscrowFundView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class EscrowStatusView(APIView):
-    def get(self, request, escrow_id):
-        escrow = get_object_or_404(EscrowWallet, id=escrow_id)
-        # Return only status or full serialized data based on your needs
+    def get(self, request, listing_id):
+        listing = get_object_or_404(P2PListing, id=listing_id)
+
+        # Ensure the listing has an escrow_wallet attached
+        if not listing.escrow_wallet:
+            return Response(
+                {"detail": "No escrow wallet linked to this listing."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        escrow = listing.escrow_wallet
+
         return Response({
             "id": str(escrow.id),
-            "status": escrow.status  # assuming you have a `status` field
+            "status": escrow.status
         }, status=status.HTTP_200_OK)
     
     
